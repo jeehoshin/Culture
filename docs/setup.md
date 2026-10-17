@@ -63,12 +63,17 @@ SUPABASE_FETCH_LIMIT=5000
 https://culture-qb0h.onrender.com/health
 ```
 
-그다음 로컬 터미널에서 최초 동기화를 요청한다.
+그다음 로컬 터미널에서 최초 동기화를 요청한다. 아래 첫 명령을 실행하면 비밀값 입력을 기다린다.
+Render의 `SYNC_SECRET` 값을 붙여 넣고 Enter를 누른다. 입력 중에는 화면에 글자가 표시되지 않는 것이 정상이다.
 
 ```bash
-curl -X POST 'https://culture-qb0h.onrender.com/api/v1/sync' \
-  -H 'X-Sync-Secret: Render에 설정한 SYNC_SECRET'
+read -s "CULTURE_SYNC_SECRET?Render SYNC_SECRET: "
+curl --fail-with-body -X POST "https://culture-qb0h.onrender.com/api/v1/sync" -H "X-Sync-Secret: ${CULTURE_SYNC_SECRET}"
+unset CULTURE_SYNC_SECRET
 ```
+
+URL 앞뒤에 `[ ]` 또는 `( )`를 붙이지 않는다. 문서의 설명용 문자열을 그대로 쓰는 것이 아니라
+실제로 Render에 저장한 `SYNC_SECRET` 값을 입력해야 한다.
 
 응답이 `{"status":"accepted"}`이면 수집이 백그라운드에서 시작된 것이다. 진행 상태는 다음에서
 확인한다.
