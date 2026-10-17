@@ -222,7 +222,7 @@ def normalize_kopis_event(item: dict, detail: dict, facility: dict) -> dict | No
     venue = _clean_text(item.get("fcltynm") or detail.get("fcltynm"), 500)
     address = _clean_text(facility.get("adres"), 1000) or None
     price = _clean_text(detail.get("pcseguidance"), 1000) or None
-    source_url = f"https://www.kopis.or.kr/por/db/pblprfrView.do?mt20Id={event_id}"
+    source_url = f"https://kopis.or.kr/mob/db/pblprfrView.do?mt20Id={event_id}"
     description_parts = [detail.get("prfcast"), detail.get("prfcrew"), detail.get("dtguidance")]
     description = _clean_text(" · ".join(str(value or "") for value in description_parts), 5000)
     return _record(
@@ -345,6 +345,11 @@ class SyncManager:
                     collectors.append(("culture_portal", collect_culture))
                 for source, collector in collectors:
                     await self._sync_source(source, collector, settings, repository)
+                try:
+                    self.state["expired_deactivated"] = await repository.deactivate_expired_events()
+                except RuntimeError as exc:
+                    # Keep deployments compatible until the lifecycle migration is applied.
+                    self.state["lifecycle_warning"] = str(exc)
                 incomplete = any(
                     result["status"] != "succeeded"
                     for result in self.state["sources"].values()

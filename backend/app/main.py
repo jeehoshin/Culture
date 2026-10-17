@@ -142,4 +142,14 @@ async def sync_events(
 
 @app.get("/api/v1/sync/status")
 async def sync_status() -> dict:
-    return sync_manager.state
+    state = dict(sync_manager.state)
+    if settings.use_fixture_data or not settings.supabase_url or not settings.supabase_server_key:
+        return state
+    repository = _repository()
+    try:
+        state["latest_runs"] = await repository.latest_sync_runs()
+    except RuntimeError as exc:
+        state["history_warning"] = str(exc)
+    finally:
+        await repository.aclose()
+    return state

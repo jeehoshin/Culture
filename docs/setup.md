@@ -17,9 +17,12 @@ Render 환경변수에만 저장한다.
 2. 왼쪽 메뉴에서 **SQL Editor**를 연다.
 3. 처음 설정하는 프로젝트라면 `supabase/migrations/0001_initial.sql` 전체를 붙여 넣고 실행한다.
 4. 이어서 `supabase/migrations/0002_ingest_rpc.sql` 전체를 붙여 넣고 실행한다.
-5. **Table Editor**에서 `events`, `venues`, `raw_events`, `event_sources`, `sync_runs`가 보이는지 확인한다.
+5. 이어서 `supabase/migrations/0003_auth_links_and_lifecycle.sql` 전체를 붙여 넣고 실행한다.
+6. **Table Editor**에서 `events`, `venues`, `raw_events`, `event_sources`, `sync_runs`가 보이는지 확인한다.
 
-이미 `0001_initial.sql`을 실행했다면 3단계를 반복하지 않고 `0002_ingest_rpc.sql`만 실행한다.
+이미 `0001_initial.sql`과 `0002_ingest_rpc.sql`을 실행했다면 앞의 두 파일은 반복하지 않고
+`0003_auth_links_and_lifecycle.sql`만 실행한다. 이 파일은 기존 KOPIS 링크를 정상 주소로 바꾸고,
+종료 행사를 비활성화하는 함수를 추가한다.
 
 ## 3. Supabase 값 확인
 
@@ -100,16 +103,28 @@ cd backend
 .venv/bin/python -m scripts.sync_now
 ```
 
-## 7. Vercel
+## 7. Vercel과 로그인
 
-Vercel에는 공개 백엔드 주소만 필수다.
+Vercel Dashboard → 프로젝트 → **Settings → Environment Variables**에 다음 공개값을 추가한다.
 
 ```text
 NEXT_PUBLIC_API_URL=https://culture-qb0h.onrender.com
+NEXT_PUBLIC_SUPABASE_URL=<Supabase Project URL>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase Publishable key>
 ```
 
-향후 Supabase 로그인을 연결할 때만 `NEXT_PUBLIC_SUPABASE_URL`과
-`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`를 추가한다. Secret/service-role 키는 절대 Vercel에 넣지 않는다.
+Supabase Dashboard → **Authentication → URL Configuration**에서 다음을 설정한다.
+
+```text
+Site URL: https://culture-flame.vercel.app
+Redirect URLs:
+https://culture-flame.vercel.app/**
+http://localhost:3000/**
+```
+
+환경변수 저장 후 Vercel의 **Deployments**에서 최신 배포를 Redeploy한다. 화면 상단의 로그인 버튼에서
+이메일을 입력하면 매직링크가 발송된다. 로그인 전에 같은 브라우저에 저장한 관심·관람 기록은 첫 로그인 때
+계정 데이터로 이전된다. Publishable key는 브라우저 공개용이며, Secret/service-role 키는 절대 Vercel에 넣지 않는다.
 
 ## 8. 정기 동기화
 
@@ -121,3 +136,7 @@ python -m scripts.sync_now
 ```
 
 Cron Job에도 Web Service와 동일한 API 및 Supabase 환경변수가 필요하다.
+
+정기 동기화 때 종료일이 지난 `events`는 `is_active=false`로 자동 전환된다. 화면 API도 항상
+`end_date >= 오늘` 조건을 적용하므로 정기 작업 사이에도 종료 행사가 노출되지 않는다. 사용자 관람 기록,
+출처 연결, 원본 payload 보존을 위해 행을 물리 삭제하지 않는다.

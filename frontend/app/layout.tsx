@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import AuthMenu from "@/components/AuthMenu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <nav aria-label="주요 메뉴">
             <Link href="/">둘러보기</Link>
             <Link href="/?saved=1">관심 목록</Link>
+            <AuthMenu />
           </nav>
         </header>
         {children}

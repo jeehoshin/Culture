@@ -100,6 +100,22 @@ class SupabaseRepository:
         )
         return response.json()
 
+    async def deactivate_expired_events(self) -> int:
+        response = await self._request("POST", "rpc/deactivate_expired_events", json={})
+        return int(response.json() or 0)
+
+    async def latest_sync_runs(self, limit: int = 5) -> list[dict]:
+        response = await self._request(
+            "GET",
+            "sync_runs",
+            params={
+                "select": "source,status,started_at,finished_at,fetched_count,inserted_count,updated_count,error_count,errors",
+                "order": "started_at.desc",
+                "limit": limit,
+            },
+        )
+        return response.json()
+
     async def create_sync_run(self, source: str) -> str:
         response = await self._request(
             "POST",

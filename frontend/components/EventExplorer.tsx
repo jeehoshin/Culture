@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { Category, CultureEvent, EventResponse } from "@/lib/types";
+import { loadFavoriteIds, setFavorite } from "@/lib/supabase";
 
 const CATEGORY_LABEL: Record<Category, string> = { exhibition: "전시", play: "연극", musical: "뮤지컬" };
 const districts = [
@@ -28,20 +29,7 @@ function formatUpdatedAt(value: string) {
   }).format(new Date(value));
 }
 
-function EventCard({ event, returnTo }: { event: CultureEvent; returnTo: string }) {
-  const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    const ids = JSON.parse(localStorage.getItem("culture-favorites") ?? "[]") as string[];
-    queueMicrotask(() => setSaved(ids.includes(event.id)));
-  }, [event.id]);
-
-  const toggleSaved = () => {
-    const ids = new Set(JSON.parse(localStorage.getItem("culture-favorites") ?? "[]") as string[]);
-    saved ? ids.delete(event.id) : ids.add(event.id);
-    localStorage.setItem("culture-favorites", JSON.stringify([...ids]));
-    window.dispatchEvent(new Event("culture-favorites-changed"));
-    setSaved(!saved);
-  };
+function EventCard({ event, returnTo, saved, onToggle }: { event: CultureEvent; returnTo: string; saved: boolean; onToggle: () => void }) {
 
   return (
     <article className="eventCard">
@@ -54,7 +42,7 @@ function EventCard({ event, returnTo }: { event: CultureEvent; returnTo: string 
         <Link href={`/events/${event.id}?from=${encodeURIComponent(returnTo)}`} className="eventTitle" onClick={() => sessionStorage.setItem("event-list-scroll", String(window.scrollY))}>{event.title}</Link>
         <p>{event.venue_name}</p>
         <p>{formatDate(event.start_date)} – {formatDate(event.end_date)}</p>
-        <div className="cardFooter"><strong>{event.price_text ?? "가격 정보 없음"}</strong><button className={saved ? "saveButton saved" : "saveButton"} onClick={toggleSaved} aria-label={saved ? "관심 목록에서 삭제" : "관심 목록에 추가"}>{saved ? "♥" : "♡"}</button></div>
+        <div className="cardFooter"><strong>{event.price_text ?? "가격 정보 없음"}</strong><button className={saved ? "saveButton saved" : "saveButton"} onClick={onToggle} aria-label={saved ? "관심 목록에서 삭제" : "관심 목록에 추가"}>{saved ? "♥" : "♡"}</button></div>
       </div>
     </article>
   );
@@ -97,11 +85,23 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
   useEffect(() => {
     const savedPosition = sessionStorage.getItem("event-list-scroll");
     if (savedPosition) requestAnimationFrame(() => window.scrollTo({ top: Number(savedPosition), behavior: "auto" }));
-    const refreshFavorites = () => setFavoriteIds(JSON.parse(localStorage.getItem("culture-favorites") ?? "[]") as string[]);
+    const refreshFavorites = () => { loadFavoriteIds().then(setFavoriteIds).catch(console.error); };
     refreshFavorites();
     window.addEventListener("culture-favorites-changed", refreshFavorites);
-    return () => window.removeEventListener("culture-favorites-changed", refreshFavorites);
+    window.addEventListener("culture-auth-changed", refreshFavorites);
+    return () => {
+      window.removeEventListener("culture-favorites-changed", refreshFavorites);
+      window.removeEventListener("culture-auth-changed", refreshFavorites);
+    };
   }, []);
+
+  const toggleFavorite = async (eventId: string) => {
+    const next = !favoriteIds.includes(eventId);
+    try {
+      await setFavorite(eventId, next);
+      setFavoriteIds((ids) => next ? [...new Set([...ids, eventId])] : ids.filter((id) => id !== eventId));
+    } catch (error) { console.error(error); }
+  };
 
   const toggleCategory = (category: Category) => {
     const next = new Set(selectedCategories);
@@ -143,7 +143,7 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
 
         <section className="results" aria-live="polite">
           <div className="resultHeader"><div><h2>{searchParams.get("saved") === "1" ? "관심 목록" : "지금 만날 수 있는 문화"}</h2><p><strong>{searchParams.get("saved") === "1" ? visibleItems.length : data.total}</strong>개의 행사를 찾았어요 · {formatUpdatedAt(data.last_synced_at)} 갱신</p></div><select aria-label="정렬" value={searchParams.get("sort") ?? "end_date"} onChange={(e) => setParams({ sort: e.target.value })}><option value="end_date">종료일순</option><option value="price">가격순</option><option value="recent">최근 등록순</option></select></div>
-          <div className={loading ? "eventGrid loading" : "eventGrid"}>{visibleItems.map((event) => <EventCard event={event} returnTo={returnTo} key={event.id} />)}</div>
+          <div className={loading ? "eventGrid loading" : "eventGrid"}>{visibleItems.map((event) => <EventCard event={event} returnTo={returnTo} saved={favoriteIds.includes(event.id)} onToggle={() => void toggleFavorite(event.id)} key={event.id} />)}</div>
           {!visibleItems.length && <div className="emptyState"><b>{searchParams.get("saved") === "1" ? "아직 저장한 행사가 없어요." : "조건에 맞는 행사가 없어요."}</b><p>{searchParams.get("saved") === "1" ? "마음에 드는 행사에서 하트를 눌러보세요." : "날짜나 지역 필터를 조금 넓혀보세요."}</p></div>}
           {searchParams.get("saved") !== "1" && totalPages > 1 && <nav className="pagination" aria-label="목록 페이지">
             <button disabled={data.page <= 1} onClick={() => setParams({ page: String(data.page - 1) })}>이전</button>
