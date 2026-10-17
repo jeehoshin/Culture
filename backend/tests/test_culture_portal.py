@@ -1,8 +1,9 @@
 from datetime import date
 
+import httpx
 import pytest
 
-from app.collectors.culture_portal import parse_json_payload
+from app.collectors.culture_portal import CulturePortalClient, parse_json_payload
 from app.sync import normalize_culture_event
 
 
@@ -72,3 +73,21 @@ def test_normalize_rejects_non_seoul_exhibition() -> None:
         horizon=date(2027, 1, 17),
     )
     assert record is None
+
+
+@pytest.mark.asyncio
+async def test_culture_portal_retry_error_keeps_http_status(monkeypatch) -> None:
+    client = CulturePortalClient("test-key", "https://example.com")
+
+    async def fail(*_args, **_kwargs):
+        return httpx.Response(503)
+
+    monkeypatch.setattr(client.client, "get", fail)
+    monkeypatch.setattr("app.collectors.culture_portal.asyncio.sleep", lambda *_args: _no_wait())
+    with pytest.raises(RuntimeError, match="temporary HTTP error 503"):
+        await client.list_events(rows=1)
+    await client.aclose()
+
+
+async def _no_wait() -> None:
+    return None

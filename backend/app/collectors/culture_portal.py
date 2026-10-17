@@ -78,7 +78,8 @@ class CulturePortalClient:
                     f"Culture Portal request failed with HTTP {response.status_code}"
                 )
             return response
-        raise RuntimeError("Culture Portal request failed after retries") from problem
+        detail = str(problem) if problem else "unknown network error"
+        raise RuntimeError(f"Culture Portal request failed after retries: {detail}") from problem
 
     async def list_events(self, page: int = 1, rows: int = 100) -> CulturePortalPage:
         for attempt in range(MAX_TRIES):
