@@ -4,7 +4,7 @@
 
 ## 구성
 
-- `frontend/`: Next.js 15 + TypeScript
+- `frontend/`: Next.js 16 + TypeScript
 - `backend/`: FastAPI, 외부 API 수집·정규화·검색 API
 - `supabase/`: PostgreSQL 스키마, RLS 정책, 인덱스
 - `docs/`: 요구사항, 데이터 흐름, API 조사와 실험 기록
@@ -26,12 +26,14 @@ npm install
 npm run dev
 ```
 
-API 키가 없어도 6개의 fixture 행사로 검색 UI와 데이터 파이프라인을 확인할 수 있습니다.
+API 키가 없어도 6개의 fixture 행사로 검색 UI를 확인할 수 있습니다. 실데이터 모드는
+KOPIS·문화포털을 수집해 Supabase에 저장한 뒤 목록 API가 해당 데이터를 읽습니다.
 
 ```bash
 cd backend
 .venv/bin/python -m scripts.run_experiment --source fixtures
 .venv/bin/python -m scripts.run_experiment --source kopis
+.venv/bin/python -m scripts.sync_now
 .venv/bin/pytest
 ```
 

@@ -16,10 +16,16 @@
 ## 문화포털 / 문화공공데이터광장
 
 - 공식 안내: https://www.culture.go.kr/data/contest/info.do
+- 이번 1차 연동 상품: 전시정보(통합), 공식 상세 https://www.culture.go.kr/data/openapi/openapiView.do?id=598
+- 요청 URL: `https://api.kcisa.kr/openapi/API_CCA_145/request`
+- 요청 변수: `serviceKey`, `numOfRows`, `pageNo`; JSON 응답의 성공 코드는 `0000`이다.
+- 2026-10-17 실측 전체 건수는 9,648건이었다. 첫 100건 기준 제목 100%, 기간 84%, 장소 78%,
+  요금 10%, 원문 URL 100%였다. 구조화된 지역 필드는 비어 있어 장소·기관명으로 서울을 판정한다.
 - 문화포털은 기관 데이터를 연계한 공연정보(통합)와 전시정보(통합)를 제공한다.
 - 통합 모델은 제목, 기간, 시간, 장소, 관람/공연시간, 요금·할인 등을 포함한 24개 공통 메타데이터를 표준화한다.
 - 기관 원문 저작권 때문에 일부 콘텐츠 제공이 제한될 수 있으며, 저작권 문의는 각 제공기관에 해야 한다.
-- 실제 endpoint와 필드 계약은 신청한 API 상품의 활용신청 화면/명세에서 확정한다. 현재 구현은 `CULTURE_PORTAL_API_URL`을 환경변수로 분리하고, 흔히 제공되는 `TITLE`, `PERIOD`, `EVENT_SITE`, `CHARGE`, `URL`, `DESCRIPTION` 변형을 방어적으로 파싱한다.
+- 구현은 `TITLE`, `PERIOD`, `EVENT_SITE`, `CHARGE`, `URL`, `DESCRIPTION`, `LOCAL_ID`,
+  `CNTC_INSTT_NM`을 사용하며 원본 응답도 함께 보존한다.
 - 이미지 URL은 MVP에서 저장하지 않는 것이 기본이며, 명세상 재사용 허용이 확인된 출처만 별도 활성화한다.
 
 ## 서울 열린데이터광장(보완 후보)
@@ -27,6 +33,15 @@
 - 이용 안내: https://data.seoul.go.kr/together/guide/useGuide.do
 - 한 번에 최대 1,000건을 요청하며 서비스별 제한은 데이터셋 메타정보에서 확인한다.
 - 서울시 문화행사 정보는 KOPIS/문화포털 누락률 분석 후에만 추가한다.
+
+## 2차 연동 보류: 수업 final project API
+
+- 후보: 공공데이터포털 `한국문화정보원_한눈에보는문화정보조회서비스`
+- 공식 문서: https://www.data.go.kr/data/15138937/openapi.do
+- 수업 프로젝트에서 사용한 계열은 `apis.data.go.kr/B553457/cultureinfo`의 XML API이며 현재
+  문화공공데이터광장 전시정보(통합) 키와 인증 체계가 다르다.
+- 서울·기간·분야 조건 조회가 가능해 지역 판별과 누락 보완에 유리하다.
+- 1차 서비스가 안정화되고 누락률을 확인한 뒤 별도 키를 신청해 추가한다.
 
 ## 라이선스 운영 원칙
 

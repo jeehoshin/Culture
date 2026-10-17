@@ -6,7 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { Category, CultureEvent, EventResponse } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<Category, string> = { exhibition: "전시", play: "연극", musical: "뮤지컬" };
-const districts = ["종로구", "중구", "용산구", "송파구"];
+const districts = [
+  "강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구",
+  "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구",
+  "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구", "종로구", "중구", "중랑구",
+];
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric" }).format(new Date(`${value}T00:00:00`));
@@ -24,7 +28,7 @@ function formatUpdatedAt(value: string) {
   }).format(new Date(value));
 }
 
-function EventCard({ event }: { event: CultureEvent }) {
+function EventCard({ event, returnTo }: { event: CultureEvent; returnTo: string }) {
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     const ids = JSON.parse(localStorage.getItem("culture-favorites") ?? "[]") as string[];
@@ -47,7 +51,7 @@ function EventCard({ event }: { event: CultureEvent }) {
       </div>
       <div className="cardBody">
         <div className="cardMeta"><span className="categoryPill">{CATEGORY_LABEL[event.category]}</span><span>{event.district}</span></div>
-        <Link href={`/events/${event.id}`} className="eventTitle" onClick={() => sessionStorage.setItem("event-list-scroll", String(window.scrollY))}>{event.title}</Link>
+        <Link href={`/events/${event.id}?from=${encodeURIComponent(returnTo)}`} className="eventTitle" onClick={() => sessionStorage.setItem("event-list-scroll", String(window.scrollY))}>{event.title}</Link>
         <p>{event.venue_name}</p>
         <p>{formatDate(event.start_date)} – {formatDate(event.end_date)}</p>
         <div className="cardFooter"><strong>{event.price_text ?? "가격 정보 없음"}</strong><button className={saved ? "saveButton saved" : "saveButton"} onClick={toggleSaved} aria-label={saved ? "관심 목록에서 삭제" : "관심 목록에 추가"}>{saved ? "♥" : "♡"}</button></div>
@@ -68,6 +72,7 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
   const selectedCategories = useMemo(() => new Set(searchParams.getAll("category")), [searchParams]);
   const setParams = (updates: Record<string, string | string[] | null>) => {
     const params = new URLSearchParams(searchParams.toString());
+    if (!("page" in updates)) params.delete("page");
     Object.entries(updates).forEach(([key, value]) => {
       params.delete(key);
       if (Array.isArray(value)) value.forEach((item) => params.append(key, item));
@@ -78,7 +83,10 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/events?${searchParams.toString()}`, { signal: controller.signal })
+    const requestParams = new URLSearchParams(searchParams.toString());
+    requestParams.delete("saved");
+    if (searchParams.get("saved") === "1") requestParams.set("page_size", "100");
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/events?${requestParams.toString()}`, { signal: controller.signal })
       .then((response) => response.json())
       .then(setData)
       .catch((error) => { if (error.name !== "AbortError") console.error(error); })
@@ -104,6 +112,8 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
   const visibleItems = searchParams.get("saved") === "1"
     ? data.items.filter((event) => favoriteIds.includes(event.id))
     : data.items;
+  const totalPages = Math.max(1, Math.ceil(data.total / data.page_size));
+  const returnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   return (
     <main>
@@ -133,8 +143,13 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
 
         <section className="results" aria-live="polite">
           <div className="resultHeader"><div><h2>{searchParams.get("saved") === "1" ? "관심 목록" : "지금 만날 수 있는 문화"}</h2><p><strong>{searchParams.get("saved") === "1" ? visibleItems.length : data.total}</strong>개의 행사를 찾았어요 · {formatUpdatedAt(data.last_synced_at)} 갱신</p></div><select aria-label="정렬" value={searchParams.get("sort") ?? "end_date"} onChange={(e) => setParams({ sort: e.target.value })}><option value="end_date">종료일순</option><option value="price">가격순</option><option value="recent">최근 등록순</option></select></div>
-          <div className={loading ? "eventGrid loading" : "eventGrid"}>{visibleItems.map((event) => <EventCard event={event} key={event.id} />)}</div>
+          <div className={loading ? "eventGrid loading" : "eventGrid"}>{visibleItems.map((event) => <EventCard event={event} returnTo={returnTo} key={event.id} />)}</div>
           {!visibleItems.length && <div className="emptyState"><b>{searchParams.get("saved") === "1" ? "아직 저장한 행사가 없어요." : "조건에 맞는 행사가 없어요."}</b><p>{searchParams.get("saved") === "1" ? "마음에 드는 행사에서 하트를 눌러보세요." : "날짜나 지역 필터를 조금 넓혀보세요."}</p></div>}
+          {searchParams.get("saved") !== "1" && totalPages > 1 && <nav className="pagination" aria-label="목록 페이지">
+            <button disabled={data.page <= 1} onClick={() => setParams({ page: String(data.page - 1) })}>이전</button>
+            <span>{data.page} / {totalPages}</span>
+            <button disabled={data.page >= totalPages} onClick={() => setParams({ page: String(data.page + 1) })}>다음</button>
+          </nav>}
         </section>
       </div>
     </main>

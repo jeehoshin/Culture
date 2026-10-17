@@ -5,13 +5,15 @@ import { getEvent } from "@/lib/api";
 
 const labels = { exhibition: "전시", play: "연극", musical: "뮤지컬" };
 
-export default async function EventDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string }> }) {
   const { id } = await params;
+  const { from } = await searchParams;
+  const backHref = from?.startsWith("/") && !from.startsWith("//") ? from : "/";
   const event = await getEvent(id);
   if (!event) notFound();
   return (
     <main className="detailPage">
-      <Link href="/" className="backLink">← 목록으로</Link>
+      <Link href={backHref} className="backLink">← 목록으로</Link>
       <div className="detailGrid">
         <div className={`detailPoster ${event.category}`}><span>{labels[event.category]}</span><strong>{event.title}</strong></div>
         <article className="detailContent">

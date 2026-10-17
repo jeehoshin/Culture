@@ -32,7 +32,7 @@ venues ◀─ events ◀─ event_sources
 
 ## 보안 경계
 
-- 외부 API 키와 Supabase service-role 키는 Render에만 둔다.
-- Next.js에는 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, 공개 백엔드 URL만 둔다.
-- service-role은 수집 작업에만 사용한다. 사용자 요청은 Supabase JWT를 전달하고 RLS가 최종 권한을 검사한다.
+- 외부 API 키와 Supabase Secret key는 Render에만 둔다.
+- Next.js에는 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, 공개 백엔드 URL만 둔다.
+- Secret key는 수집 작업에만 사용한다. 사용자 요청은 Supabase JWT를 전달하고 RLS가 최종 권한을 검사한다.
 

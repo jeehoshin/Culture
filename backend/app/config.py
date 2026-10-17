@@ -12,17 +12,26 @@ class Settings(BaseSettings):
     kopis_api_key: str | None = None
     culture_portal_api_key: str | None = None
     culture_portal_api_url: str = (
-        "https://api.kcisa.kr/openapi/service/rest/convergence2019/getConver02"
+        "https://api.kcisa.kr/openapi/API_CCA_145/request"
     )
     seoul_open_api_key: str | None = None
     supabase_url: str | None = None
-    supabase_anon_key: str | None = None
+    supabase_publishable_key: str | None = None
+    supabase_secret_key: str | None = None
     supabase_service_role_key: str | None = None
     sync_secret: str = "change-me"
+    sync_kopis_enabled: bool = True
+    sync_culture_portal_enabled: bool = True
+    culture_portal_max_pages: int = 100
+    supabase_fetch_limit: int = 5000
 
     @property
     def allowed_origins(self) -> list[str]:
         return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+
+    @property
+    def supabase_server_key(self) -> str | None:
+        return self.supabase_secret_key or self.supabase_service_role_key
 
 
 @lru_cache

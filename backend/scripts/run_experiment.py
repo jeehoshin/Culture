@@ -70,7 +70,7 @@ async def live_rows() -> list[dict]:
     if not settings.kopis_api_key or not settings.culture_portal_api_key:
         raise SystemExit("live mode requires KOPIS_API_KEY and CULTURE_PORTAL_API_KEY")
     start, end = date.today(), date.today() + timedelta(days=30)
-    kopis, culture = await asyncio.gather(
+    kopis, culture_page = await asyncio.gather(
         KopisClient(settings.kopis_api_key).list_performances(start, end),
         CulturePortalClient(
             settings.culture_portal_api_key, settings.culture_portal_api_url
@@ -88,7 +88,7 @@ async def live_rows() -> list[dict]:
                 "price": "",
             }
         )
-    for index, item in enumerate(culture):
+    for index, item in enumerate(culture_page.items):
         period = str(item.get("PERIOD") or item.get("period") or "").replace(".", "-").split("~")
         if len(period) != 2:
             continue
