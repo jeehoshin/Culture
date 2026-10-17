@@ -120,7 +120,7 @@ async def event_detail(event_id: str) -> Event:
 async def sync_events(
     background_tasks: BackgroundTasks,
     x_sync_secret: Annotated[str | None, Header()] = None,
-    source: Literal["all", "kopis", "culture_portal"] = "all",
+    source: Literal["all", "kopis", "culture_portal", "seoul"] = "all",
 ) -> dict[str, str]:
     if settings.sync_secret == "change-me":
         raise HTTPException(status_code=503, detail="SYNC_SECRET must be changed before syncing.")
@@ -134,6 +134,7 @@ async def sync_events(
         update={
             "sync_kopis_enabled": source in {"all", "kopis"},
             "sync_culture_portal_enabled": source in {"all", "culture_portal"},
+            "sync_seoul_enabled": source in {"all", "seoul"},
         }
     )
     background_tasks.add_task(sync_manager.run, sync_settings)

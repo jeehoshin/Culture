@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from app.collectors.culture_portal import CulturePortalClient
 from app.collectors.kopis import KopisClient, date_windows
+from app.collectors.seoul import SeoulCultureClient
 from app.config import Settings
 from app.models import Category
 from app.normalization import normalize_text, parse_price
@@ -67,6 +68,11 @@ SOURCE_META = {
         "api_documentation_url": "https://www.culture.go.kr/data/openapi/openapiView.do?id=598",
         "attribution": "출처: 한국문화정보원 문화공공데이터광장 전시정보(통합)",
         "license_note": "기관별 원문 저작권 및 문화공공데이터광장 이용조건 준수",
+    },
+    "seoul": {
+        "api_documentation_url": "https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do",
+        "attribution": "출처: 서울특별시 서울 열린데이터광장·서울문화포털",
+        "license_note": "서울 열린데이터광장 이용조건 및 출처표시 준수",
     },
 }
 
@@ -242,6 +248,50 @@ def normalize_kopis_event(item: dict, detail: dict, facility: dict) -> dict | No
     )
 
 
+def normalize_seoul_event(item: dict, today: date, horizon: date) -> dict | None:
+    category_name = _clean_text(item.get("CODENAME"))
+    if "전시" not in category_name and "미술" not in category_name:
+        return None
+    start_date = _parse_date(item.get("STRTDATE") or item.get("DATE"))
+    end_date = _parse_date(item.get("END_DATE") or item.get("DATE"))
+    if not start_date or not end_date or end_date < today or start_date > horizon:
+        return None
+    title = _clean_text(item.get("TITLE"), 500)
+    venue = _clean_text(item.get("PLACE"), 500)
+    source_url = _http_url(item.get("HMPG_ADDR") or item.get("ORG_LINK"))
+    external_match = re.search(r"cultcode=(\d+)", source_url or "")
+    identity = f"{title}|{start_date.isoformat()}|{end_date.isoformat()}|{venue}"
+    external_id = (
+        external_match.group(1)
+        if external_match
+        else hashlib.sha256(identity.encode()).hexdigest()[:24]
+    )
+    if not title:
+        return None
+    price = _clean_text(item.get("USE_FEE"), 1000) or None
+    if not price and "무료" in _clean_text(item.get("IS_FREE")):
+        price = "무료"
+    description = _clean_text(
+        " · ".join(str(item.get(key) or "") for key in ("PROGRAM", "ETC_DESC", "PRO_TIME")),
+        5000,
+    )
+    return _record(
+        source="seoul",
+        external_id=external_id,
+        title=title,
+        category=Category.EXHIBITION,
+        venue_name=venue,
+        address=venue or None,
+        district=_clean_text(item.get("GUNAME"), 100) or _district(venue),
+        start_date=start_date,
+        end_date=end_date,
+        price_text=price,
+        description=description or None,
+        source_url=source_url,
+        payload=item,
+    )
+
+
 async def collect_culture(settings: Settings) -> tuple[list[dict], list[str]]:
     if not settings.culture_portal_api_key:
         return [], ["CULTURE_PORTAL_API_KEY is not configured"]
@@ -255,6 +305,18 @@ async def collect_culture(settings: Settings) -> tuple[list[dict], list[str]]:
     today = date.today()
     horizon = today + timedelta(days=92)
     records = [normalize_culture_event(item, today, horizon) for item in raw_items]
+    return [record for record in records if record], []
+
+
+async def collect_seoul(settings: Settings) -> tuple[list[dict], list[str]]:
+    client = SeoulCultureClient(settings.seoul_open_api_key, settings.seoul_open_api_url)
+    try:
+        raw_items = await client.list_exhibitions()
+    finally:
+        await client.aclose()
+    today = date.today()
+    horizon = today + timedelta(days=92)
+    records = [normalize_seoul_event(item, today, horizon) for item in raw_items]
     return [record for record in records if record], []
 
 
@@ -343,6 +405,8 @@ class SyncManager:
                     collectors.append(("kopis", collect_kopis))
                 if settings.sync_culture_portal_enabled:
                     collectors.append(("culture_portal", collect_culture))
+                if settings.sync_seoul_enabled:
+                    collectors.append(("seoul", collect_seoul))
                 for source, collector in collectors:
                     await self._sync_source(source, collector, settings, repository)
                 try:

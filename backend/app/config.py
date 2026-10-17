@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         "https://api.kcisa.kr/openapi/API_CCA_145/request"
     )
     seoul_open_api_key: str | None = None
+    seoul_open_api_url: str = "http://openapi.seoul.go.kr:8088"
     supabase_url: str | None = None
     supabase_publishable_key: str | None = None
     supabase_secret_key: str | None = None
@@ -22,6 +23,7 @@ class Settings(BaseSettings):
     sync_secret: str = "change-me"
     sync_kopis_enabled: bool = True
     sync_culture_portal_enabled: bool = True
+    sync_seoul_enabled: bool = True
     culture_portal_max_pages: int = 100
     supabase_fetch_limit: int = 5000
 

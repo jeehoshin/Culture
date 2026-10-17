@@ -47,7 +47,9 @@ class SupabaseRepository:
                 SourceRef(
                     source=source["source"],
                     source_name=(
-                        "KOPIS" if source["source"] == "kopis" else "문화포털"
+                        "KOPIS"
+                        if source["source"] == "kopis"
+                        else ("서울문화포털" if source["source"] == "seoul" else "문화포털")
                     ),
                     external_url=source.get("source_url"),
                     attribution=source["attribution"],

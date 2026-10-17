@@ -8,6 +8,7 @@ Render 환경변수에만 저장한다.
 - KOPIS: `KOPIS_API_KEY`
 - 문화포털 전시정보(통합): `CULTURE_PORTAL_API_KEY`
 - 문화포털 URL: `https://api.kcisa.kr/openapi/API_CCA_145/request`
+- 서울시 문화행사: `SEOUL_OPEN_API_KEY` (미설정 시 공식 샘플 전시 5건으로 동작)
 
 공공데이터포털의 `한눈에보는문화정보조회서비스`는 2차 연동 대상으로 보류한다.
 
@@ -51,6 +52,8 @@ SUPABASE_SECRET_KEY=<Supabase sb_secret_ 키>
 SYNC_SECRET=<충분히 긴 임의 문자열>
 SYNC_KOPIS_ENABLED=true
 SYNC_CULTURE_PORTAL_ENABLED=true
+SYNC_SEOUL_ENABLED=true
+SEOUL_OPEN_API_KEY=<서울 열린데이터광장 인증키, 선택>
 CULTURE_PORTAL_MAX_PAGES=100
 SUPABASE_FETCH_LIMIT=5000
 ```
@@ -92,7 +95,12 @@ https://culture-qb0h.onrender.com/api/v1/sync/status
 ```text
 ?source=kopis
 ?source=culture_portal
+?source=seoul
 ```
+
+문화포털 API 도메인 장애가 발생해도 서울시 문화행사 API로 전시를 수집할 수 있다. 서울시 키가
+없으면 공식 샘플키 범위인 전시 5건만 수집하며, `SEOUL_OPEN_API_KEY`를 추가하면 전시 전체를
+페이지 단위로 수집한다.
 
 ## 6. 로컬 동기화 방법
 
