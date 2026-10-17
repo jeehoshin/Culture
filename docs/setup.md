@@ -84,6 +84,13 @@ https://culture-qb0h.onrender.com/api/v1/sync/status
 
 `status`가 `succeeded` 또는 `partial`이 된 뒤 행사 목록 API와 Vercel 화면을 새로고침한다.
 
+특정 소스만 다시 동기화할 때는 URL에 `source`를 지정할 수 있다.
+
+```text
+?source=kopis
+?source=culture_portal
+```
+
 ## 6. 로컬 동기화 방법
 
 루트 `.env`에 Supabase 서버 값을 넣은 경우 다음 명령으로 동일한 작업을 로컬에서 실행할 수 있다.

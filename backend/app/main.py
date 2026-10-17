@@ -1,6 +1,6 @@
 import hmac
 from datetime import UTC, date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -120,6 +120,7 @@ async def event_detail(event_id: str) -> Event:
 async def sync_events(
     background_tasks: BackgroundTasks,
     x_sync_secret: Annotated[str | None, Header()] = None,
+    source: Literal["all", "kopis", "culture_portal"] = "all",
 ) -> dict[str, str]:
     if settings.sync_secret == "change-me":
         raise HTTPException(status_code=503, detail="SYNC_SECRET must be changed before syncing.")
@@ -129,7 +130,13 @@ async def sync_events(
         raise HTTPException(status_code=503, detail="Supabase server settings are not configured.")
     if sync_manager.state["status"] == "running":
         raise HTTPException(status_code=409, detail="A sync is already running.")
-    background_tasks.add_task(sync_manager.run, settings)
+    sync_settings = settings.model_copy(
+        update={
+            "sync_kopis_enabled": source in {"all", "kopis"},
+            "sync_culture_portal_enabled": source in {"all", "culture_portal"},
+        }
+    )
+    background_tasks.add_task(sync_manager.run, sync_settings)
     return {"status": "accepted"}
 
 

@@ -389,6 +389,7 @@ class SyncManager:
             "inserted_count": inserted,
             "updated_count": updated,
             "error_count": len(errors),
+            "errors": errors[:3],
         }
 
 
