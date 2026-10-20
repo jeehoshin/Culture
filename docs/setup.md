@@ -56,6 +56,7 @@ SYNC_SEOUL_ENABLED=true
 SEOUL_OPEN_API_KEY=<서울 열린데이터광장 인증키, 선택>
 CULTURE_PORTAL_MAX_PAGES=100
 SUPABASE_FETCH_LIMIT=5000
+PUBLIC_REFRESH_MIN_HOURS=6
 ```
 
 `SYNC_SECRET`은 비밀번호 관리자에서 32자 이상 임의 문자열로 생성한다. 설정을 저장한 뒤
@@ -89,6 +90,10 @@ https://culture-qb0h.onrender.com/api/v1/sync/status
 ```
 
 `status`가 `succeeded` 또는 `partial`이 된 뒤 행사 목록 API와 Vercel 화면을 새로고침한다.
+
+배포 화면의 `데이터 갱신` 버튼은 최근 성공한 수집으로부터 6시간 이상 지난 소스만 다시 수집한다.
+전시만 선택한 화면에서는 빠른 서울시 전시 수집만 실행하고, 전체 화면에서는 서울시와 KOPIS를
+함께 갱신한다. 브라우저에는 API 키나 `SYNC_SECRET`이 전달되지 않는다.
 
 특정 소스만 다시 동기화할 때는 URL에 `source`를 지정할 수 있다.
 

@@ -14,3 +14,8 @@ def test_filter_free_exhibitions() -> None:
     assert response.status_code == 200
     assert all(item["category"] == "exhibition" for item in response.json()["items"])
     assert all(item["price_type"] == "free" for item in response.json()["items"])
+
+
+def test_public_refresh_is_disabled_in_fixture_mode() -> None:
+    response = client.post("/api/v1/refresh")
+    assert response.status_code == 503

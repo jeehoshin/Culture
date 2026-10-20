@@ -1,5 +1,5 @@
 import hmac
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query, status
@@ -139,6 +139,45 @@ async def sync_events(
     )
     background_tasks.add_task(sync_manager.run, sync_settings)
     return {"status": "accepted"}
+
+
+@app.post("/api/v1/refresh", status_code=status.HTTP_202_ACCEPTED)
+async def refresh_public_data(
+    background_tasks: BackgroundTasks,
+    scope: Literal["all", "exhibition"] = "all",
+) -> dict:
+    """Start a rate-limited refresh without exposing the server sync secret."""
+    if settings.use_fixture_data:
+        raise HTTPException(status_code=503, detail="Refresh is unavailable in fixture mode.")
+    if sync_manager.state["status"] == "running":
+        return {"status": "running", "sources": list(sync_manager.state.get("sources", {}))}
+
+    requested = ["seoul"] if scope == "exhibition" else ["seoul", "kopis"]
+    cutoff = datetime.now(UTC) - timedelta(hours=settings.public_refresh_min_hours)
+    repository = _repository()
+    try:
+        latest = {
+            source: await repository.latest_successful_sync(source)
+            for source in requested
+        }
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    finally:
+        await repository.aclose()
+
+    stale = [source for source, finished_at in latest.items() if not finished_at or finished_at < cutoff]
+    if not stale:
+        return {"status": "up_to_date", "sources": requested}
+
+    refresh_settings = settings.model_copy(
+        update={
+            "sync_kopis_enabled": "kopis" in stale,
+            "sync_culture_portal_enabled": False,
+            "sync_seoul_enabled": "seoul" in stale,
+        }
+    )
+    background_tasks.add_task(sync_manager.run, refresh_settings)
+    return {"status": "accepted", "sources": stale}
 
 
 @app.get("/api/v1/sync/status")

@@ -56,6 +56,10 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [reloadToken, setReloadToken] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
   const selectedCategories = useMemo(() => new Set(searchParams.getAll("category")), [searchParams]);
   const setParams = (updates: Record<string, string | string[] | null>) => {
@@ -74,13 +78,13 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
     const requestParams = new URLSearchParams(searchParams.toString());
     requestParams.delete("saved");
     if (searchParams.get("saved") === "1") requestParams.set("page_size", "100");
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/events?${requestParams.toString()}`, { signal: controller.signal })
+    fetch(`${apiUrl}/api/v1/events?${requestParams.toString()}`, { signal: controller.signal })
       .then((response) => response.json())
       .then(setData)
       .catch((error) => { if (error.name !== "AbortError") console.error(error); })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [searchParams]);
+  }, [apiUrl, reloadToken, searchParams]);
 
   useEffect(() => {
     const savedPosition = sessionStorage.getItem("event-list-scroll");
@@ -101,6 +105,41 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
       await setFavorite(eventId, next);
       setFavoriteIds((ids) => next ? [...new Set([...ids, eventId])] : ids.filter((id) => id !== eventId));
     } catch (error) { console.error(error); }
+  };
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    setRefreshMessage("최신 데이터를 확인하고 있습니다…");
+    const exhibitionOnly = selectedCategories.size === 1 && selectedCategories.has("exhibition");
+    try {
+      const response = await fetch(`${apiUrl}/api/v1/refresh?scope=${exhibitionOnly ? "exhibition" : "all"}`, { method: "POST" });
+      if (!response.ok) throw new Error(`refresh failed: ${response.status}`);
+      const result = await response.json() as { status: string };
+      if (result.status === "up_to_date") {
+        setRefreshMessage("이미 최신 데이터입니다.");
+        setReloadToken((value) => value + 1);
+        return;
+      }
+      setRefreshMessage("새 데이터를 수집하고 있습니다…");
+      const deadline = Date.now() + 5 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        const statusResponse = await fetch(`${apiUrl}/api/v1/sync/status`, { cache: "no-store" });
+        const syncState = await statusResponse.json() as { status: string; sources?: Record<string, { status: string }> };
+        const exhibitionFinished = exhibitionOnly && Boolean(syncState.sources?.seoul);
+        if (syncState.status !== "running" || exhibitionFinished) {
+          setReloadToken((value) => value + 1);
+          setRefreshMessage(syncState.sources?.seoul?.status === "failed" ? "전시 갱신에 실패했습니다." : "최신 데이터로 갱신했습니다.");
+          return;
+        }
+      }
+      setRefreshMessage("수집이 계속 진행 중입니다. 잠시 후 다시 눌러주세요.");
+    } catch (error) {
+      console.error(error);
+      setRefreshMessage("데이터 갱신을 시작하지 못했습니다.");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const toggleCategory = (category: Category) => {
@@ -142,7 +181,7 @@ export default function EventExplorer({ initialData }: { initialData: EventRespo
         </aside>
 
         <section className="results" aria-live="polite">
-          <div className="resultHeader"><div><h2>{searchParams.get("saved") === "1" ? "관심 목록" : "지금 만날 수 있는 문화"}</h2><p><strong>{searchParams.get("saved") === "1" ? visibleItems.length : data.total}</strong>개의 행사를 찾았어요 · {formatUpdatedAt(data.last_synced_at)} 갱신</p></div><select aria-label="정렬" value={searchParams.get("sort") ?? "end_date"} onChange={(e) => setParams({ sort: e.target.value })}><option value="end_date">종료일순</option><option value="price">가격순</option><option value="recent">최근 등록순</option></select></div>
+          <div className="resultHeader"><div><h2>{searchParams.get("saved") === "1" ? "관심 목록" : "지금 만날 수 있는 문화"}</h2><p><strong>{searchParams.get("saved") === "1" ? visibleItems.length : data.total}</strong>개의 행사를 찾았어요 · {formatUpdatedAt(data.last_synced_at)} 갱신</p>{refreshMessage && <p className="refreshMessage">{refreshMessage}</p>}</div><div className="resultControls"><button className="refreshButton" disabled={refreshing} onClick={() => void refreshData()}>{refreshing ? "갱신 중…" : "↻ 데이터 갱신"}</button><select aria-label="정렬" value={searchParams.get("sort") ?? "end_date"} onChange={(e) => setParams({ sort: e.target.value })}><option value="end_date">종료일순</option><option value="price">가격순</option><option value="recent">최근 등록순</option></select></div></div>
           <div className={loading ? "eventGrid loading" : "eventGrid"}>{visibleItems.map((event) => <EventCard event={event} returnTo={returnTo} saved={favoriteIds.includes(event.id)} onToggle={() => void toggleFavorite(event.id)} key={event.id} />)}</div>
           {!visibleItems.length && <div className="emptyState"><b>{searchParams.get("saved") === "1" ? "아직 저장한 행사가 없어요." : "조건에 맞는 행사가 없어요."}</b><p>{searchParams.get("saved") === "1" ? "마음에 드는 행사에서 하트를 눌러보세요." : "날짜나 지역 필터를 조금 넓혀보세요."}</p></div>}
           {searchParams.get("saved") !== "1" && totalPages > 1 && <nav className="pagination" aria-label="목록 페이지">

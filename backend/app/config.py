@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     sync_seoul_enabled: bool = True
     culture_portal_max_pages: int = 100
     supabase_fetch_limit: int = 5000
+    public_refresh_min_hours: int = 6
 
     @property
     def allowed_origins(self) -> list[str]:

@@ -118,6 +118,22 @@ class SupabaseRepository:
         )
         return response.json()
 
+    async def latest_successful_sync(self, source: str) -> datetime | None:
+        response = await self._request(
+            "GET",
+            "sync_runs",
+            params={
+                "select": "finished_at",
+                "source": f"eq.{source}",
+                "status": "eq.succeeded",
+                "finished_at": "not.is.null",
+                "order": "finished_at.desc",
+                "limit": 1,
+            },
+        )
+        rows = response.json()
+        return datetime.fromisoformat(rows[0]["finished_at"]) if rows else None
+
     async def create_sync_run(self, source: str) -> str:
         response = await self._request(
             "POST",

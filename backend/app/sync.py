@@ -401,12 +401,12 @@ class SyncManager:
             )
             try:
                 collectors = []
+                if settings.sync_seoul_enabled:
+                    collectors.append(("seoul", collect_seoul))
                 if settings.sync_kopis_enabled:
                     collectors.append(("kopis", collect_kopis))
                 if settings.sync_culture_portal_enabled:
                     collectors.append(("culture_portal", collect_culture))
-                if settings.sync_seoul_enabled:
-                    collectors.append(("seoul", collect_seoul))
                 for source, collector in collectors:
                     await self._sync_source(source, collector, settings, repository)
                 try:
